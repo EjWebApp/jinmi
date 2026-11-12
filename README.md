@@ -37,10 +37,12 @@ npm start          # http://localhost:3000
 
 ## 카페24 Node.js 호스팅 배포
 
-1. 카페24 Node.js 호스팅을 신청하고 **앱**과 **DB(MariaDB)** 를 만듭니다. 앱 관리 화면에서 git 주소를 확인합니다.
+1. 카페24 Node.js 호스팅을 신청하고 **앱**과 **DB(MariaDB)** 를 만듭니다. 앱 관리 화면에서 git 저장소 주소, 포트(보통 8001), Node 버전을 확인합니다.
+   - SSH 키 등록: `ssh-keygen -t rsa`로 키를 만들고, `~/.ssh/id_rsa.pub` 내용을 카페24 관리 화면의 **public key 관리**에 등록합니다. push는 이 키로 인증합니다.
+   - 카페24 Node.js 호스팅은 디스크·메모리가 작고 로그를 보기 어렵다는 후기가 있습니다. 문제가 생기면 가상서버(VPS)로 옮기는 방법도 있습니다.
 2. [.env.cafe24.example](.env.cafe24.example)을 `.env.cafe24`로 복사하고 git 주소, DB 정보, 임시 관리자 비밀번호를 채웁니다.
    이 파일은 git 작업 기록에 들어가지 않습니다.
-3. 변경 사항을 커밋한 뒤 배포 스크립트를 실행합니다. 카페24 FTP/계정 비밀번호를 물어보면 입력합니다.
+3. 변경 사항을 커밋한 뒤 배포 스크립트를 실행합니다. SSH 키 비밀번호(passphrase)를 물어보면 입력합니다.
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\deploy-cafe24.ps1
    ```
