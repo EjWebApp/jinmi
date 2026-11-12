@@ -1,0 +1,18 @@
+# 로컬 개발용 MariaDB (카페24 Node.js 호스팅의 MariaDB와 같은 계열)
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: Asia/Seoul
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "127.0.0.1:${DB_PORT}:3306"
+    volumes:
+      - jinmi-db:/var/lib/mysql
+volumes:
+  jinmi-db:

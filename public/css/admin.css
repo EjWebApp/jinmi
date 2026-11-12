@@ -1,0 +1,87 @@
+/* 관리자 페이지 */
+body.admin { background: var(--cream); }
+.auth-view { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.auth-view[hidden] { display: none; }
+.auth-card { width: 100%; max-width: 400px; }
+.auth-card h1 { font-size: 26px; text-align: center; margin-bottom: 18px; }
+.auth-badge { width: 120px; height: 120px; margin: 0 auto 8px; }
+.btn-block { width: 100%; }
+.back-link { display: block; text-align: center; margin-top: 16px; font-size: 14px; color: var(--muted); text-decoration: none; }
+
+.admin-header .wrap { gap: 20px; }
+.tabs { display: flex; gap: 4px; margin-right: auto; margin-left: 12px; }
+.tab { border: 0; background: none; font: inherit; font-size: 15px; padding: 10px 16px; border-radius: 999px; cursor: pointer; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--grape); color: var(--cream); font-weight: 700; }
+.tab:hover:not([aria-selected="true"]) { background: var(--sand); }
+.who { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.admin-main { padding-top: 28px; padding-bottom: 60px; }
+.tab-panel { padding: 0; }
+.tab-panel[hidden] { display: none; }
+.admin h2 { font-size: 21px; margin-bottom: 8px; }
+.admin h3.sub { font-size: 17px; margin: 22px 0 12px; padding-top: 18px; border-top: 1px dashed var(--line); }
+
+/* 통계 */
+.stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+.stat-card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; gap: 2px; }
+.stat-card span { font-size: 14px; color: var(--muted); }
+.stat-card b { font-family: var(--font-head); font-size: 30px; color: var(--grape); line-height: 1.2; }
+.stat-card small { font-size: 13px; color: var(--muted); min-height: 1em; }
+.stat-card.warn b { color: #A06A10; }
+
+/* 툴바 */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px; margin-bottom: 16px; }
+.toolbar select, .toolbar input[type=search] { width: auto; padding: 9px 12px; font-size: 15px; }
+.toolbar input[type=search] { flex: 1; min-width: 200px; }
+.seg { display: inline-flex; background: var(--sand); border-radius: 999px; padding: 3px; }
+.seg-btn { border: 0; background: none; font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer; color: var(--muted); }
+.seg-btn[aria-pressed="true"] { background: var(--paper); color: var(--grape); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+/* 예약 목록 */
+.res-list { display: grid; gap: 18px; }
+.day-group h3 { font-size: 17px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
+.day-group h3 small { font-family: var(--font-body); font-weight: 400; font-size: 14px; color: var(--muted); }
+.day-group.is-today h3::after { content: '오늘'; font-family: var(--font-body); font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--olive); color: var(--cream); }
+.res-items { display: grid; gap: 10px; }
+.res { background: var(--paper); border: 1px solid var(--line); border-left: 5px solid #E2C27A; border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: 74px 1.4fr 1.2fr 1fr; gap: 14px; align-items: start; }
+.res.s-confirmed { border-left-color: var(--olive); }
+.res.s-done { border-left-color: var(--grape-2); }
+.res.s-cancelled { border-left-color: #C9BFBF; opacity: .65; }
+.res-time { font-family: var(--font-head); font-size: 20px; font-weight: 700; color: var(--grape); line-height: 1.2; }
+.res-time small { display: block; font-family: var(--font-body); font-size: 12px; font-weight: 400; color: var(--muted); }
+.res-main b { font-size: 16px; }
+.res-main .meta { font-size: 14px; color: var(--muted); }
+.res-main a { color: var(--grape); font-weight: 700; text-decoration: none; }
+.res-req { font-size: 14px; background: var(--cream); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; }
+.res-req.empty { background: none; color: #B8AEA2; padding: 0; }
+.res-actions { display: grid; gap: 8px; }
+.res-actions select { padding: 8px 10px; font-size: 14px; font-weight: 700; }
+.res-actions textarea { min-height: 54px; font-size: 14px; padding: 8px 10px; }
+.res-actions .row { display: flex; gap: 6px; justify-content: flex-end; }
+.link-btn { border: 0; background: none; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; padding: 2px 4px; }
+.link-btn.danger { color: var(--danger); }
+.empty-state { text-align: center; padding: 48px 16px; color: var(--muted); background: var(--paper); border-radius: 14px; border: 1px dashed var(--line); }
+
+/* 휴무일 / 계정 */
+.narrow { max-width: 640px; }
+.inline-form { display: grid; grid-template-columns: 170px 1fr auto; gap: 10px; margin: 16px 0; }
+.simple-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+.simple-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 10px; font-size: 15px; }
+.simple-list li small { color: var(--muted); margin-left: 8px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--ink); color: var(--cream); padding: 12px 22px; border-radius: 999px; font-size: 15px; z-index: 200; box-shadow: var(--shadow); }
+.toast[hidden] { display: none; }
+
+@media (max-width: 980px) {
+  .stat-cards { grid-template-columns: 1fr 1fr; }
+  .res { grid-template-columns: 64px 1fr; }
+  .res-req, .res-actions { grid-column: 1 / -1; }
+  .two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .admin-header .wrap { flex-wrap: wrap; height: auto; padding-top: 10px; padding-bottom: 10px; }
+  .tabs { order: 3; width: 100%; margin: 0; overflow-x: auto; }
+  .who { margin-left: auto; }
+  .toolbar input[type=search] { min-width: 100%; }
+  .inline-form { grid-template-columns: 1fr; }
+}

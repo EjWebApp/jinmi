@@ -1,0 +1,19 @@
+{
+  "name": "jinmi-farm",
+  "version": "1.0.0",
+  "description": "진미농원 유기농포도 체험농장 홈페이지",
+  "main": "web.js",
+  "scripts": {
+    "start": "node web.js",
+    "dev": "node --watch web.js",
+    "db:up": "docker compose -p jinmi up -d",
+    "db:down": "docker compose -p jinmi down"
+  },
+  "dependencies": {
+    "mysql2": "^3.24.6"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=16"
+  }
+}
