@@ -1,21 +1,36 @@
-// MySQL / MariaDB 연결 + 테이블 자동 생성 (카페24 MariaDB 호환)
+// MySQL / MariaDB / TiDB Cloud 연결 + 테이블 자동 생성
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 const { promisify } = require('util');
 const scrypt = promisify(crypto.scrypt);
 
-const pool = mysql.createPool({
+const CONN = {
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
   charset: 'utf8mb4',
   timezone: '+09:00',
   dateStrings: true,
-  connectionLimit: 5,
-  waitForConnections: true,
-});
+  // TiDB Cloud 같은 외부 DB는 암호화 연결 필수 → DB_SSL=true
+  ssl: process.env.DB_SSL === 'true' ? { minVersion: 'TLSv1.2', rejectUnauthorized: true } : undefined,
+};
+const DB_NAME = String(process.env.DB_NAME || '').replace(/`/g, '');
+
+const pool = mysql.createPool({ ...CONN, database: DB_NAME, connectionLimit: 5, waitForConnections: true });
+// DB 서버 시간대(TiDB는 UTC)와 상관없이 NOW() 가 한국 시간이 되도록
+pool.pool.on('connection', conn => conn.query("SET time_zone = '+09:00'"));
+
+// DB가 없으면 만든다 (TiDB Cloud 는 처음에 test DB 만 있음)
+async function ensureDatabase() {
+  const conn = await mysql.createConnection(CONN);
+  try {
+    await conn.query('CREATE DATABASE IF NOT EXISTS `' + DB_NAME + '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+  } catch (e) {
+    // DB 생성 권한이 없는 계정이면 건너뜀 (이미 DB가 있는 경우). 진짜 문제면 다음 접속에서 드러남
+    if (!/denied/i.test(e.message)) throw e;
+  } finally { await conn.end(); }
+}
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS admins (
@@ -55,6 +70,9 @@ const SCHEMA = [
     INDEX idx_slot (visit_date, visit_time, status),
     INDEX idx_phone (phone)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS slot_locks (
+    slot_key VARCHAR(20) PRIMARY KEY
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS blocked_dates (
     blocked_date DATE PRIMARY KEY,
     reason VARCHAR(100) NOT NULL DEFAULT '',
@@ -91,7 +109,7 @@ async function migrate() {
 
 async function waitForDb(retries = 30) {
   for (let i = 0; i < retries; i++) {
-    try { await pool.query('SELECT 1'); return; } catch (e) {
+    try { await ensureDatabase(); await pool.query('SELECT 1'); return; } catch (e) {
       if (i === retries - 1) throw e;
       await new Promise(r => setTimeout(r, 2000));
     }

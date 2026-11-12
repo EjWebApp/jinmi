@@ -1,4 +1,4 @@
-# 로컬 개발용 MariaDB (카페24 Node.js 호스팅의 MariaDB와 같은 계열)
+# 로컬 개발용 MariaDB (운영은 TiDB Cloud — MySQL 호환)
 services:
   db:
     image: mariadb:10.11

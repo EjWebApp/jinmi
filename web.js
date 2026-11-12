@@ -1,3 +1,2 @@
-// 카페24 Node.js 호스팅은 web.js 를 시작 파일로, 8001 포트를 사용합니다.
-if (!process.env.PORT && process.env.NODE_ENV === 'production') process.env.PORT = '8001';
+// 시작 파일 (npm start). Render 등 호스팅은 PORT 환경변수를 넘겨줍니다.
 require('./server');

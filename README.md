@@ -12,7 +12,7 @@
 ## 구성
 
 - **서버**: Node.js(내장 `http`) + `mysql2` 하나만 사용합니다.
-- **DB**: MySQL / MariaDB. 처음 실행하면 테이블이 자동으로 만들어집니다 ([db.js](db.js)).
+- **DB**: MySQL 호환 DB(로컬은 MariaDB, 운영은 TiDB Cloud). 처음 실행하면 테이블이 자동으로 만들어집니다 ([db.js](db.js)).
 - **관리자 로그인**: 아이디와 비밀번호를 쓰고, 비밀번호는 scrypt로 암호화해 저장합니다. 로그인 상태는 HttpOnly 쿠키로 12시간 유지되고, 5번 틀리면 10분 동안 잠깁니다.
 - **예약 정원**: 시간대마다 정원이 있고, 기본값은 40명입니다([config.json](config.json)의 `capacityPerSlot`). 같은 시간대에 예약이 동시에 들어와도 DB 잠금으로 정원을 넘지 않게 막습니다.
 - **로고**: 1f 시안(덩굴 원형 배지)을 SVG로 넣었습니다 ([public/js/common.js](public/js/common.js)).
@@ -35,23 +35,29 @@ npm start          # http://localhost:3000
 - 사진 → [public/images/](public/images/)에 있습니다. 페이스북 원본에서 골라 축소한 사진입니다.
 - 문구·연락처 → [public/index.html](public/index.html)
 
-## 카페24 Node.js 호스팅 배포
+## 무료 배포: Render + TiDB Cloud
 
-1. 카페24 Node.js 호스팅을 신청하고 **앱**과 **DB(MariaDB)** 를 만듭니다. 앱 관리 화면에서 git 저장소 주소, 포트(보통 8001), Node 버전을 확인합니다.
-   - SSH 키 등록: `ssh-keygen -t rsa`로 키를 만들고, `~/.ssh/id_rsa.pub` 내용을 카페24 관리 화면의 **public key 관리**에 등록합니다. push는 이 키로 인증합니다.
-   - 카페24 Node.js 호스팅은 디스크·메모리가 작고 로그를 보기 어렵다는 후기가 있습니다. 문제가 생기면 가상서버(VPS)로 옮기는 방법도 있습니다.
-2. [.env.cafe24.example](.env.cafe24.example)을 `.env.cafe24`로 복사하고 git 주소, DB 정보, 임시 관리자 비밀번호를 채웁니다.
-   이 파일은 git 작업 기록에 들어가지 않습니다.
-3. 변경 사항을 커밋한 뒤 배포 스크립트를 실행합니다. SSH 키 비밀번호(passphrase)를 물어보면 입력합니다.
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\deploy-cafe24.ps1
-   ```
-   스크립트는 커밋된 코드에 `.env.cafe24`를 `.env`로 넣어 카페24 저장소의 `master`로 푸시합니다.
-   시작 파일은 [web.js](web.js), 포트는 8001입니다(카페24 규칙).
-4. 카페24 관리 화면에서 앱을 (재)시작하고 `/admin`에 접속해 비밀번호를 바꿉니다.
-5. 도메인을 연결하고 HTTPS(SSL)를 켜 주세요. HTTPS에서는 로그인 쿠키에 `Secure`가 자동으로 붙습니다.
+사이트는 [Render](https://render.com) 무료 웹 서비스, DB는 [TiDB Cloud](https://tidbcloud.com) 무료(Starter) 클러스터를 씁니다. TiDB는 MySQL과 호환됩니다.
 
-> 카페24 쪽의 세부 설정(Node 버전, 환경변수 넣는 방법, DB 호스트 이름)은 신청한 상품의 안내를 꼭 확인해 주세요.
+1. **GitHub에 올리기**: GitHub에 비공개(private) 저장소를 만들고 이 프로젝트를 push합니다.
+2. **TiDB Cloud DB 만들기**: 가입 → 클러스터 만들기(무료, 리전은 Tokyo 등 가까운 곳) → **Connect** 화면에서
+   Host, Port(4000), User(`xxxx.root` 형태), Password를 확인합니다. DB(`jinmi`)는 서버가 처음 켜질 때 자동으로 만듭니다.
+3. **Render에 배포**: Render 가입(GitHub 계정으로) → **New → Blueprint** → 저장소 선택.
+   [render.yaml](render.yaml)을 읽어 설정이 채워지고, 아래 값만 입력하면 됩니다.
+   | 이름 | 값 |
+   |---|---|
+   | `DB_HOST` | TiDB Host |
+   | `DB_USER` | TiDB User |
+   | `DB_PASSWORD` | TiDB Password |
+   | `INITIAL_ADMIN_PASSWORD` | 처음 쓸 임시 관리자 비밀번호 |
+4. 배포가 끝나면 `https://jinmi-xxxx.onrender.com/admin`에 접속해 `admin`으로 로그인하고 비밀번호를 바꿉니다.
+5. 이후에는 GitHub에 push할 때마다 자동으로 다시 배포됩니다.
+
+알아둘 점
+- 무료 서비스는 **15분 동안 접속이 없으면 잠들고**, 다음 첫 접속 때 깨어나는 데 최대 1분쯤 걸립니다.
+- Render 서버의 파일은 재배포 때 사라지므로, 데이터는 모두 DB에 저장합니다(사진은 저장소의 `public/images`).
+- 도메인을 연결하려면 Render 서비스의 **Settings → Custom Domains**에서 추가합니다. HTTPS는 자동입니다.
+- 무료 조건은 바뀔 수 있으니 가끔 Render·TiDB 요금 안내를 확인해 주세요.
 
 ## 확인이 필요한 내용 (페이스북에서 정확히 찾지 못한 것)
 

@@ -93,6 +93,15 @@ function parseCookies(req) {
   return out;
 }
 const isHttps = req => req.headers['x-forwarded-proto'] === 'https' || req.socket.encrypted;
+// Render 같은 프록시 뒤에서는 실제 접속자 IP가 X-Forwarded-For 에 들어옴 (TRUST_PROXY=1 일 때만 사용)
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+function clientIp(req) {
+  if (TRUST_PROXY) {
+    const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (xff) return xff;
+  }
+  return req.socket.remoteAddress || '';
+}
 const sha256 = s => crypto.createHash('sha256').update(s).digest('hex');
 function rowToReservation(r) {
   return {
@@ -195,12 +204,14 @@ async function apiPublic(req, res, url) {
     if (b.agree !== true) fail(400, '개인정보 수집·이용에 동의해 주세요.');
     await validateDate(date, program);
 
-    // 같은 날짜·시간 동시 예약 시 정원 초과를 막기 위해 슬롯 단위 잠금
+    // 같은 날짜·시간 동시 예약 시 정원 초과를 막기 위해 슬롯 단위 행 잠금 (MariaDB·TiDB 공통)
     const conn = await pool.getConnection();
-    const lockName = `jinmi:${date}:${time}`;
+    const slotKey = `${date} ${time}`;
+    let committed = false;
     try {
-      const [[lock]] = await conn.query('SELECT GET_LOCK(?, 10) AS ok', [lockName]);
-      if (!lock.ok) fail(503, '예약이 몰리고 있어요. 잠시 후 다시 시도해 주세요.');
+      await conn.query('INSERT IGNORE INTO slot_locks (slot_key) VALUES (?)', [slotKey]);
+      await conn.beginTransaction();
+      await conn.query('SELECT slot_key FROM slot_locks WHERE slot_key = ? FOR UPDATE', [slotKey]);
       const [[{ n }]] = await conn.query(
         `SELECT COALESCE(SUM(adults + children), 0) AS n FROM reservations
          WHERE visit_date = ? AND visit_time = ? AND status <> 'cancelled'`, [date, time]);
@@ -216,9 +227,11 @@ async function apiPublic(req, res, url) {
           adults, children, name, phone, group_type, group_name, request)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
         [no, program.id, program.name, date, time, adults, children, name, phone, groupType, groupName, request]);
+      await conn.commit();
+      committed = true;
       return send(res, 201, { no, date, time, programName: program.name, adults, children });
     } finally {
-      await conn.query('SELECT RELEASE_LOCK(?)', [lockName]).catch(() => {});
+      if (!committed) await conn.rollback().catch(() => {});
       conn.release();
     }
   }
@@ -226,7 +239,7 @@ async function apiPublic(req, res, url) {
   // 예약 조회 (예약번호 + 연락처)
   if (p === '/api/reservations/lookup' && m === 'POST') {
     const b = await readBody(req);
-    const key = 'lookup:' + (req.socket.remoteAddress || '');
+    const key = 'lookup:' + clientIp(req);
     checkRateLimit(key);
     const no = str(b.no, 20).toUpperCase();
     const phone = normalizePhone(b.phone);
@@ -254,7 +267,7 @@ async function apiAdmin(req, res, url) {
   }
 
   if (p === '/api/admin/login' && m === 'POST') {
-    const key = 'login:' + (req.socket.remoteAddress || '');
+    const key = 'login:' + clientIp(req);
     checkRateLimit(key);
     const b = await readBody(req);
     const username = str(b.username, 40);
