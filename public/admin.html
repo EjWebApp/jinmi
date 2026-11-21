@@ -51,6 +51,7 @@
       <nav class="tabs" role="tablist">
         <button role="tab" class="tab" data-tab="reservations" aria-selected="true">예약 관리</button>
         <button role="tab" class="tab" data-tab="blocked" aria-selected="false">휴무일</button>
+        <button role="tab" class="tab" data-tab="notes" aria-selected="false">작업 노트<span class="tab-badge" id="notesBadge" hidden></span></button>
         <button role="tab" class="tab" data-tab="accounts" aria-selected="false">계정</button>
       </nav>
       <div class="who"><span id="whoName"></span><button class="btn btn-ghost btn-sm" id="logoutBtn">로그아웃</button></div>
@@ -102,6 +103,40 @@
       </div>
     </section>
 
+    <!-- 작업 노트 (노션식 페이지 + 댓글) -->
+    <section id="tab-notes" class="tab-panel" hidden>
+      <div class="notes">
+        <aside class="notes-side">
+          <div class="notes-side-head">
+            <h2>작업 노트</h2>
+            <button class="btn btn-primary btn-sm" id="noteNewBtn">+ 새 페이지</button>
+          </div>
+          <ul id="noteList" class="note-list"></ul>
+        </aside>
+
+        <article id="notePage" class="note-page card">
+          <div class="empty-state">왼쪽에서 페이지를 골라주세요.</div>
+        </article>
+
+        <form id="noteEditor" class="note-page note-editor card" hidden novalidate>
+          <input type="text" id="edTitle" class="ed-title" maxlength="120" placeholder="제목 없음" aria-label="제목">
+          <div class="ed-meta">
+            <label>날짜 <input type="date" id="edDate"></label>
+            <div class="seg" role="group" aria-label="보기">
+              <button type="button" class="seg-btn" data-ed="write" aria-pressed="true">쓰기</button>
+              <button type="button" class="seg-btn" data-ed="preview" aria-pressed="false">미리보기</button>
+            </div>
+          </div>
+          <textarea id="edBody" class="ed-body" placeholder="내용을 적어주세요.&#10;&#10;## 소제목&#10;- 목록&#10;1. 번호 목록&#10;**굵게**  > 인용  --- 구분선"></textarea>
+          <div id="edPreview" class="note-body" hidden></div>
+          <div class="ed-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="edCancel">취소</button>
+            <button type="submit" class="btn btn-primary btn-sm">저장</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
     <!-- 계정 -->
     <section id="tab-accounts" class="tab-panel" hidden>
       <div class="two-col">
@@ -136,5 +171,6 @@
 
 <script src="js/common.js"></script>
 <script src="js/admin.js"></script>
+<script src="js/notes.js"></script>
 </body>
 </html>

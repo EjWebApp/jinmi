@@ -68,6 +68,15 @@
     $('whoName').textContent = `${me.username} 님`;
     show('app');
     loadReservations();
+    // #notes, #notes/3 처럼 주소로 바로 열기
+    const hashTab = location.hash.slice(1).split('/')[0];
+    const tabBtn = hashTab && document.querySelector(`.tab[data-tab="${CSS.escape(hashTab)}"]`);
+    if (tabBtn) {
+      const hash = location.hash;
+      tabBtn.click();
+      if (hashTab === 'notes') history.replaceState(null, '', hash);
+    }
+    if (window.JMNotes) window.JMNotes.refreshBadge();
   }
 
   // ---------- 탭 ----------
@@ -77,7 +86,11 @@
     if (t.dataset.tab === 'reservations') loadReservations();
     if (t.dataset.tab === 'blocked') loadBlocked();
     if (t.dataset.tab === 'accounts') loadAccounts();
+    if (t.dataset.tab === 'notes' && window.JMNotes) window.JMNotes.load();
+    history.replaceState(null, '', t.dataset.tab === 'reservations' ? location.pathname : '#' + t.dataset.tab);
   }));
+  // 작업 노트(notes.js)에서 같이 쓰는 도구
+  window.JMA = { api, toast, me: () => state.me };
 
   // ---------- 예약 ----------
   async function loadReservations() {

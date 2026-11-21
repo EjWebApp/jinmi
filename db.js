@@ -78,6 +78,34 @@ const SCHEMA = [
     reason VARCHAR(100) NOT NULL DEFAULT '',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  // 작업 노트 (관리자 화면의 노션식 페이지). source='file' 은 notes/*.md 에서 자동 반영된 것
+  `CREATE TABLE IF NOT EXISTS notes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    slug VARCHAR(80) NULL UNIQUE,
+    title VARCHAR(120) NOT NULL,
+    body MEDIUMTEXT NOT NULL,
+    author VARCHAR(40) NOT NULL DEFAULT '',
+    note_date DATE NOT NULL,
+    source ENUM('file','admin') NOT NULL DEFAULT 'admin',
+    created_by INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_date (note_date)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  // anchor: 댓글이 달린 문단(블록)의 해시, '' 이면 페이지 전체 댓글
+  `CREATE TABLE IF NOT EXISTS note_comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    note_id INT NOT NULL,
+    anchor VARCHAR(16) NOT NULL DEFAULT '',
+    quote VARCHAR(200) NOT NULL DEFAULT '',
+    admin_id INT NULL,
+    author VARCHAR(40) NOT NULL,
+    body TEXT NOT NULL,
+    resolved TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_note (note_id, anchor),
+    CONSTRAINT fk_comment_note FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
 // 비밀번호 해시: scrypt (Node 내장) — 형식 scrypt$salt$hash

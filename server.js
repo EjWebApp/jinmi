@@ -113,6 +113,38 @@ function rowToReservation(r) {
   };
 }
 
+// ---------- 작업 노트: notes/*.md → DB 반영 ----------
+// 파일 맨 위 머리말(--- title / date / author ---) + 본문(마크다운). 파일명이 slug.
+const NOTES_DIR = path.join(__dirname, 'notes');
+async function syncNotesFromFiles() {
+  if (!fs.existsSync(NOTES_DIR)) return;
+  for (const f of fs.readdirSync(NOTES_DIR).filter(n => n.endsWith('.md'))) {
+    const slug = f.slice(0, -3).slice(0, 80);
+    const raw = fs.readFileSync(path.join(NOTES_DIR, f), 'utf8').replace(/^﻿/, '');
+    const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+    const meta = {};
+    if (m) for (const line of m[1].split(/\r?\n/)) {
+      const kv = line.match(/^(\w+)\s*:\s*(.*)$/);
+      if (kv) meta[kv[1]] = kv[2].trim();
+    }
+    const body = (m ? m[2] : raw).trim();
+    const title = str(meta.title, 120) || slug;
+    const date = isDate(meta.date || '') ? meta.date : todayKST();
+    await pool.query(
+      `INSERT INTO notes (slug, title, body, author, note_date, source) VALUES (?, ?, ?, ?, ?, 'file')
+       ON DUPLICATE KEY UPDATE title = VALUES(title), body = VALUES(body), author = VALUES(author), note_date = VALUES(note_date)`,
+      [slug, title, body, str(meta.author, 40), date]);
+  }
+}
+const rowToNote = r => ({
+  id: r.id, title: r.title, body: r.body, author: r.author, date: r.note_date, source: r.source,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowToComment = r => ({
+  id: r.id, anchor: r.anchor, quote: r.quote, adminId: r.admin_id, author: r.author,
+  body: r.body, resolved: !!r.resolved, createdAt: r.created_at,
+});
+
 // ---------- 로그인 시도 제한 (메모리) ----------
 const loginAttempts = new Map();
 function checkRateLimit(key) {
@@ -362,6 +394,80 @@ async function apiAdmin(req, res, url) {
     return send(res, 200, { blockedDates: rows });
   }
 
+  // --- 작업 노트 ---
+  if (p === '/api/admin/notes' && m === 'GET') {
+    const [rows] = await pool.query(
+      `SELECT n.id, n.title, n.author, n.note_date, n.source, n.updated_at,
+         (SELECT COUNT(*) FROM note_comments c WHERE c.note_id = n.id) AS comments,
+         (SELECT COUNT(*) FROM note_comments c WHERE c.note_id = n.id AND c.resolved = 0) AS open_comments
+       FROM notes n ORDER BY n.note_date DESC, n.id DESC`);
+    return send(res, 200, { notes: rows.map(r => ({
+      id: r.id, title: r.title, author: r.author, date: r.note_date, source: r.source, updatedAt: r.updated_at,
+      comments: Number(r.comments), openComments: Number(r.open_comments),
+    })), me: admin.id });
+  }
+  if (p === '/api/admin/notes' && m === 'POST') {
+    const b = await readBody(req);
+    const title = str(b.title, 120), body = str(b.body, 40000);
+    const date = isDate(str(b.date, 10)) ? str(b.date, 10) : todayKST();
+    if (!title) fail(400, '제목을 입력해 주세요.');
+    const [r] = await pool.query(
+      `INSERT INTO notes (title, body, author, note_date, source, created_by) VALUES (?, ?, ?, ?, 'admin', ?)`,
+      [title, body, admin.username, date, admin.id]);
+    return send(res, 201, { id: r.insertId });
+  }
+  const noteM = p.match(/^\/api\/admin\/notes\/(\d+)(\/comments|\/threads)?$/);
+  if (noteM) {
+    const id = Number(noteM[1]), sub = noteM[2];
+    const [[note]] = await pool.query('SELECT * FROM notes WHERE id = ?', [id]);
+    if (!note) fail(404, '페이지를 찾을 수 없습니다.');
+
+    if (!sub && m === 'GET') {
+      const [cs] = await pool.query('SELECT * FROM note_comments WHERE note_id = ? ORDER BY created_at, id', [id]);
+      return send(res, 200, { note: rowToNote(note), comments: cs.map(rowToComment), me: admin.id });
+    }
+    if (!sub && (m === 'PATCH' || m === 'DELETE')) {
+      if (note.source === 'file') fail(403, '자동으로 올라온 페이지는 화면에서 고칠 수 없어요. 댓글로 수정 요청을 남겨주세요.');
+      if (m === 'DELETE') {
+        await pool.query('DELETE FROM notes WHERE id = ?', [id]);
+        return send(res, 200, { ok: true });
+      }
+      const b = await readBody(req);
+      const title = str(b.title, 120), body = str(b.body, 40000);
+      const date = isDate(str(b.date, 10)) ? str(b.date, 10) : note.note_date;
+      if (!title) fail(400, '제목을 입력해 주세요.');
+      await pool.query('UPDATE notes SET title = ?, body = ?, note_date = ? WHERE id = ?', [title, body, date, id]);
+      return send(res, 200, { ok: true });
+    }
+    if (sub === '/comments' && m === 'POST') {
+      const b = await readBody(req);
+      const body = str(b.body, 2000);
+      const anchor = /^[a-z0-9]{1,16}$/.test(b.anchor || '') ? b.anchor : '';
+      if (!body) fail(400, '댓글 내용을 입력해 주세요.');
+      const [r] = await pool.query(
+        'INSERT INTO note_comments (note_id, anchor, quote, admin_id, author, body) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, anchor, anchor ? str(b.quote, 200) : '', admin.id, admin.username, body]);
+      // 해결된 스레드에 새 댓글이 달리면 다시 열기
+      await pool.query('UPDATE note_comments SET resolved = 0 WHERE note_id = ? AND anchor = ?', [id, anchor]);
+      const [[c]] = await pool.query('SELECT * FROM note_comments WHERE id = ?', [r.insertId]);
+      return send(res, 201, rowToComment(c));
+    }
+    if (sub === '/threads' && m === 'PATCH') {
+      const b = await readBody(req);
+      const anchor = /^[a-z0-9]{0,16}$/.test(b.anchor || '') ? (b.anchor || '') : fail(400, '잘못된 요청입니다.');
+      await pool.query('UPDATE note_comments SET resolved = ? WHERE note_id = ? AND anchor = ?', [b.resolved ? 1 : 0, id, anchor]);
+      return send(res, 200, { ok: true });
+    }
+  }
+  const comM = p.match(/^\/api\/admin\/comments\/(\d+)$/);
+  if (comM && m === 'DELETE') {
+    const [[c]] = await pool.query('SELECT admin_id FROM note_comments WHERE id = ?', [Number(comM[1])]);
+    if (!c) fail(404, '댓글을 찾을 수 없습니다.');
+    if (c.admin_id !== admin.id) fail(403, '내가 쓴 댓글만 지울 수 있어요.');
+    await pool.query('DELETE FROM note_comments WHERE id = ?', [Number(comM[1])]);
+    return send(res, 200, { ok: true });
+  }
+
   // --- 관리자 계정 ---
   if (p === '/api/admin/accounts' && m === 'GET') {
     const [rows] = await pool.query('SELECT id, username, created_at AS createdAt, last_login_at AS lastLoginAt FROM admins ORDER BY id');
@@ -441,6 +547,7 @@ const server = http.createServer(async (req, res) => {
   try {
     await waitForDb();
     await migrate();
+    await syncNotesFromFiles();
   } catch (e) {
     console.error('데이터베이스 연결/초기화 실패:', e.message);
     process.exit(1);
