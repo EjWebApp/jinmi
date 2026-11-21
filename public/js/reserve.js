@@ -27,7 +27,7 @@
     <label class="prog-opt ${p.months.includes(nowMonth) ? '' : 'off-season'}">
       <input type="radio" name="programId" value="${esc(p.id)}">
       <img src="${esc(p.image)}" alt="">
-      <span><b>${esc(p.name)}</b><small class="season">${esc(p.season)} · ${esc(p.duration)}</small></span>
+      <span><b>${esc(p.name)}</b><small class="season">${esc(p.season)} · ${esc(p.duration)}${p.target ? ' · ' + esc(p.target) : ''}${p.price ? ' · ' + esc(p.price) : ''}</small></span>
     </label>`).join('');
   $('programList').addEventListener('change', e => {
     if (e.target.name !== 'programId') return;
@@ -144,6 +144,7 @@
   function renderSummary() {
     const p = program();
     $('sumProgram').textContent = p ? p.name : '—';
+    $('mCtaText').textContent = p ? p.name : '프로그램을 골라주세요';
     $('sumDate').textContent = state.date ? fmtDate(state.date) : '—';
     $('sumTime').textContent = state.time || '—';
     const a = parseInt($('adults').value, 10) || 0, c = parseInt($('children').value, 10) || 0;
@@ -151,25 +152,105 @@
     $('sumPrice').textContent = p && p.price && p.price !== '체험비 문의' ? p.price : '예약 확인 전화 때 안내';
   }
 
-  // ---------- 제출 ----------
+  // ---------- 단계별 팝업 (2 날짜·시간 → 3 예약자 → 4 동의) ----------
+  const wiz = $('wizard');
+  const steps = [...document.querySelectorAll('.wiz-step')];
+  let cur = 0, lastFocus = null;
+  const wizOpen = () => !wiz.hidden;
+
+  function renderWizSum() {
+    const p = program();
+    $('wizTitle').textContent = p ? p.name : '체험 예약';
+    const bits = [];
+    if (state.date) bits.push(fmtDate(state.date) + (state.time ? ' ' + state.time : ''));
+    if (cur >= 1 && people()) bits.push(`${people()}명`);
+    $('wizSum').textContent = bits.join(' · ');
+  }
+  function goStep(i) {
+    cur = i;
+    steps.forEach((el, k) => { el.hidden = k !== i; });
+    document.querySelectorAll('.wiz-progress li').forEach((li, k) => {
+      li.classList.toggle('active', k === i); li.classList.toggle('done', k < i);
+      if (k === i) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+    });
+    $('wizPrev').hidden = i === 0;
+    $('submitBtn').textContent = i === steps.length - 1 ? '예약 신청하기' : '다음';
+    $('wizError').hidden = true;
+    $('wizBody').scrollTop = 0;
+    renderWizSum();
+    const first = steps[i].querySelector('.cal-day.selected, .slot[aria-checked="true"], input:not([type=hidden]):not([tabindex="-1"]), button:not(:disabled)');
+    if (first && matchMedia('(pointer:fine)').matches) first.focus({ preventScroll: true });
+  }
+  function openWizard() {
+    $('formError').hidden = true;
+    if (!state.programId) {
+      $('formError').textContent = '먼저 체험 프로그램을 골라주세요.'; $('formError').hidden = false;
+      $('formError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    lastFocus = document.activeElement;
+    wiz.hidden = false;
+    document.documentElement.classList.add('wiz-lock');
+    goStep(state.date && state.time ? Math.min(cur, steps.length - 1) : 0);
+  }
+  function closeWizard() {
+    wiz.hidden = true;
+    document.documentElement.classList.remove('wiz-lock');
+    if (lastFocus) lastFocus.focus({ preventScroll: true });
+  }
+  $('openWizard').addEventListener('click', openWizard);
+  $('mCtaBtn').addEventListener('click', openWizard);
+  $('wizClose').addEventListener('click', closeWizard);
+  $('wizPrev').addEventListener('click', () => goStep(Math.max(0, cur - 1)));
+  // 입력을 고치기 시작하면 오류 문구는 숨김
+  wiz.addEventListener('input', () => { $('wizError').hidden = true; });
+  wiz.addEventListener('change', () => { $('wizError').hidden = true; });
+  wiz.addEventListener('mousedown', e => { if (e.target === wiz) closeWizard(); });
+  // 날짜·시간·인원이 바뀌면 팝업 아래쪽 요약도 갱신
+  ['calDays', 'slotList'].forEach(id => $(id).addEventListener('click', () => setTimeout(renderWizSum)));
+  ['adults', 'children'].forEach(id => $(id).addEventListener('input', renderWizSum));
+  document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', renderWizSum));
+  // 탭 키가 팝업 밖으로 나가지 않게
+  wiz.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const f = [...wiz.querySelectorAll('button, input, select, textarea, a[href]')].filter(el => !el.disabled && el.offsetParent !== null && el.tabIndex >= 0);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  });
+
+  // ---------- 검사 · 제출 ----------
   function showError(msg, focusEl) {
-    $('formError').textContent = msg; $('formError').hidden = false;
-    $('formError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const box = wizOpen() ? $('wizError') : $('formError');
+    box.textContent = msg; box.hidden = false;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     if (focusEl) setTimeout(() => focusEl.focus({ preventScroll: true }), 300);
   }
+  function checkStep(i) {
+    const f = $('reserveForm');
+    if (i === 0) {
+      if (!state.date) return showError('체험 날짜를 골라주세요.'), false;
+      if (!state.time) return showError('체험 시간을 골라주세요.'), false;
+    }
+    if (i === 1) {
+      if (people() < 1) return showError('인원을 1명 이상 입력해 주세요.', $('adults')), false;
+      if (people() > remain(state.date, state.time)) return showError(`선택하신 시간은 ${remain(state.date, state.time)}명까지 예약할 수 있어요. 더 많은 인원은 전화로 문의해 주세요.`, $('adults')), false;
+      if (!$('name').value.trim()) return showError('예약자 성함을 입력해 주세요.', $('name')), false;
+      if (!/^0\d{1,2}-?\d{3,4}-?\d{4}$/.test(f.phone.value.trim())) return showError('연락처를 정확히 입력해 주세요. (예: 010-1234-5678)', f.phone), false;
+    }
+    if (i === 2 && !f.agree.checked) return showError('개인정보 수집·이용에 동의해 주세요.', f.agree), false;
+    return true;
+  }
+
   $('reserveForm').addEventListener('submit', async e => {
     e.preventDefault();
-    $('formError').hidden = true;
-    const f = e.target;
-    if (!state.programId) return showError('체험 프로그램을 선택해 주세요.');
-    if (!state.date) return showError('체험 날짜를 선택해 주세요.');
-    if (!state.time) return showError('체험 시간을 선택해 주세요.');
-    if (people() < 1) return showError('인원을 1명 이상 입력해 주세요.', $('adults'));
-    if (people() > remain(state.date, state.time)) return showError(`선택하신 시간은 ${remain(state.date, state.time)}명까지 예약할 수 있어요. 더 많은 인원은 전화로 문의해 주세요.`);
-    if (!$('name').value.trim()) return showError('예약자 성함을 입력해 주세요.', $('name'));
-    if (!/^0\d{1,2}-?\d{3,4}-?\d{4}$/.test(f.phone.value.trim())) return showError('연락처를 정확히 입력해 주세요. (예: 010-1234-5678)', f.phone);
-    if (!f.agree.checked) return showError('개인정보 수집·이용에 동의해 주세요.', f.agree);
+    if (!wizOpen()) return openWizard();
+    $('wizError').hidden = true;
+    if (!checkStep(cur)) return;
+    if (cur < steps.length - 1) return goStep(cur + 1);
+    for (let i = 0; i < steps.length; i++) if (!checkStep(i)) return goStep(i), checkStep(i);
 
+    const f = e.target;
     const btn = $('submitBtn');
     btn.disabled = true; btn.textContent = '신청하는 중…';
     try {
@@ -186,22 +267,29 @@
       if (!r.ok) {
         delete state.avail[ym(state.date)];
         await renderCalendar(); renderSlots();
+        // 자리가 찼거나 날짜 문제면 날짜 단계로 돌아가서 다시 고르게
+        if (r.status === 409 || /자리|마감|날짜|시간/.test(data.error || '')) goStep(0);
         return showError(data.error || '예약 중 문제가 생겼어요. 전화로 문의해 주세요.');
       }
       $('doneNo').textContent = data.no;
       $('doneDetail').textContent = `${data.programName} · ${fmtDate(data.date)} ${data.time} · ${data.adults + data.children}명`;
+      closeWizard();
       $('doneOverlay').hidden = false;
       $('doneClose').focus();
-      f.reset(); state.date = null; state.time = null; state.programId = null; state.avail = {};
+      f.reset(); state.date = null; state.time = null; state.programId = null; state.avail = {}; cur = 0;
       renderCalendar(); renderSlots(); renderSummary();
     } catch {
       showError('네트워크 오류가 발생했어요. 잠시 후 다시 시도하거나 전화로 문의해 주세요.');
     } finally {
-      btn.disabled = false; btn.textContent = '예약 신청하기';
+      btn.disabled = false; btn.textContent = cur === steps.length - 1 ? '예약 신청하기' : '다음';
     }
   });
   $('doneClose').addEventListener('click', () => { $('doneOverlay').hidden = true; });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('doneOverlay').hidden = true; });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!$('doneOverlay').hidden) $('doneOverlay').hidden = true;
+    else if (wizOpen()) closeWizard();
+  });
 
   // ---------- 조회 ----------
   $('lookupForm').addEventListener('submit', async e => {

@@ -135,6 +135,9 @@ section { padding: 96px 0; }
 }
 .story-quote cite { display: block; font-style: normal; font-family: var(--font-body); font-size: 14px; color: var(--muted); margin-top: 8px; }
 .story p + p { margin-top: 14px; }
+.smart .wrap { grid-template-columns: 1.1fr 1fr; }
+.smart .story-photos { order: 2; }
+.smart .story-photos .float { right: auto; left: -24px; aspect-ratio: 1; }
 .timeline { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 10px; }
 .timeline li { display: grid; grid-template-columns: 64px 1fr; gap: 12px; font-size: 15px; }
 .timeline b { font-family: var(--font-hand); font-size: 22px; color: var(--olive); line-height: 1.2; }
@@ -160,14 +163,17 @@ section { padding: 96px 0; }
 .program-card h3 { font-size: 20px; margin-bottom: 8px; }
 .program-card p { font-size: 15px; color: var(--muted); line-height: 1.7; flex: 1; }
 .program-card .btn { margin-top: 18px; align-self: flex-start; }
-.program-card.feature { grid-column: span 2; flex-direction: row; }
+.program-card.feature { grid-column: 1 / -1; flex-direction: row; }
 .program-card.feature img { width: 52%; aspect-ratio: auto; }
 .program-card.feature .program-body { padding: 30px; justify-content: center; }
 .program-card.feature h3 { font-size: 26px; }
 .program-card.feature p { flex: none; }
-.program-steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 6px; font-size: 15px; color: var(--ink); }
-.program-steps li { display: flex; gap: 10px; align-items: baseline; }
-.program-steps li::before { content: '●'; color: var(--grape-2); font-size: 9px; transform: translateY(-2px); }
+.program-steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 6px; font-size: 14px; color: var(--ink); counter-reset: step; }
+.program-steps li { display: flex; gap: 10px; align-items: baseline; counter-increment: step; }
+.program-steps li::before { content: counter(step); flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--grape-soft); color: var(--grape-2); font-size: 12px; font-weight: 700; display: grid; place-items: center; transform: translateY(3px); }
+.program-card.feature .program-steps { grid-template-columns: 1fr 1fr; column-gap: 18px; font-size: 15px; }
+.program-card p.program-price { flex: none; margin-top: 14px; font-size: 14px; color: var(--muted); }
+.program-price b { color: var(--grape); font-size: 16px; }
 .program-note { margin-top: 28px; padding: 18px 22px; border-radius: var(--radius); background: var(--grape-soft); color: var(--grape); font-size: 15px; display: flex; gap: 12px; align-items: flex-start; }
 
 /* ---------- 품종 달력 ---------- */
@@ -203,6 +209,31 @@ section { padding: 96px 0; }
 .partners { margin-top: 40px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .partners span { padding: 6px 14px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: 14px; color: var(--muted); }
 
+/* ---------- 함께 걸어온 길 ---------- */
+.journey { max-width: 980px; margin: 0 auto; }
+.journey-year { display: grid; grid-template-columns: 150px 1fr; gap: 32px; align-items: start; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 32px 36px; box-shadow: var(--shadow); }
+.year-badge { position: relative; text-align: center; padding-top: 6px; }
+.year-badge span { display: inline-block; font-family: var(--font-brush); font-size: 64px; line-height: 1; color: var(--grape); }
+.year-badge::after { content: ''; display: block; width: 46px; height: 3px; margin: 10px auto 0; border-radius: 2px; background: var(--olive-2); }
+.journey-list { list-style: none; margin: 0; padding: 0; }
+.journey-list li { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-top: 1px dashed var(--line); }
+.journey-list li:first-child { border-top: 0; padding-top: 4px; }
+.journey-list li:last-child { padding-bottom: 0; }
+.j-icon { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--grape-soft); font-size: 20px; }
+.journey-list h3 { font-size: 19px; }
+.journey-list p { margin-top: 2px; font-size: 15px; color: var(--muted); }
+.journey-photos { margin-top: 28px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.journey-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; transition: transform .4s ease; }
+.journey-photos img:hover { transform: scale(1.04); }
+.journey-caption { margin-top: 14px; text-align: center; font-family: var(--font-brush); font-size: 26px; color: var(--olive); }
+.cert { margin-top: 40px; display: grid; grid-template-columns: 260px 1fr; gap: 36px; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px 36px; box-shadow: var(--shadow); }
+.cert-img { display: block; transform: rotate(-1.5deg); transition: transform .35s ease; }
+.cert-img:hover { transform: rotate(0) scale(1.03); }
+.cert-img img { width: 100%; display: block; border-radius: 4px; box-shadow: 0 2px 6px rgba(43,35,48,.12), 0 14px 30px rgba(43,35,48,.14); }
+.cert-tag { display: inline-block; font-size: 13px; color: var(--olive); background: var(--cream); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; }
+.cert-body h3 { margin-top: 10px; font-size: 24px; color: var(--grape); }
+.cert-body p { margin-top: 8px; font-size: 15px; color: var(--muted); }
+
 /* ---------- 농산물 ---------- */
 .products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 .product { display: grid; grid-template-rows: auto 1fr; background: var(--paper); border-radius: 18px; overflow: hidden; border: 1px solid var(--line); }
@@ -219,6 +250,7 @@ section { padding: 96px 0; }
 .info-list li { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding-bottom: 16px; border-bottom: 1px dashed var(--line); }
 .info-list b { color: var(--olive); font-weight: 700; font-size: 15px; }
 .info-list a { color: var(--grape); font-weight: 700; text-decoration: none; }
+.info-list .links a { font-weight: 400; text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---------- CTA 띠 ---------- */
 .cta-band { background: var(--grape); color: var(--cream); padding: 72px 0; text-align: center; position: relative; overflow: hidden; }
@@ -274,6 +306,8 @@ textarea { min-height: 110px; resize: vertical; }
   .gallery { grid-template-columns: repeat(3, 1fr); }
   .story-photos { margin-bottom: 40px; }
   .story-photos .float { right: 0; }
+  .smart .story-photos { order: 0; }
+  .smart .story-photos .float { left: auto; right: 0; }
 }
 @media (max-width: 760px) {
   body { font-size: 16px; }
@@ -294,8 +328,14 @@ textarea { min-height: 110px; resize: vertical; }
   .five-grid { grid-template-columns: 1fr 1fr; }
   .program-grid, .products, .voices { grid-template-columns: 1fr; }
   .program-card.feature { grid-column: auto; flex-direction: column; }
+  .program-card.feature .program-steps { grid-template-columns: 1fr; }
   .program-card.feature img { width: 100%; aspect-ratio: 4/3; }
   .gallery { grid-template-columns: 1fr 1fr; grid-auto-rows: 150px; }
+  .journey-year { grid-template-columns: 1fr; gap: 12px; padding: 24px 20px; }
+  .year-badge span { font-size: 52px; }
+  .journey-photos { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .cert { grid-template-columns: 1fr; gap: 20px; padding: 24px 20px; text-align: center; }
+  .cert-img { max-width: 240px; margin: 0 auto; }
   .gallery .wide { grid-column: span 2; }
   .row-2 { grid-template-columns: 1fr; }
   .card { padding: 20px; }

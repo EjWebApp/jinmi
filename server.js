@@ -403,10 +403,18 @@ function serveStatic(req, res, url) {
         e ? send(res, 404, 'Not found') : send(res, 404, buf, { 'Content-Type': MIME['.html'] }));
     }
     const ext = path.extname(file).toLowerCase();
+    // html·js·css 는 매번 바뀌었는지 확인(안 바뀌면 304) → 수정 후 옛 파일이 남아 버튼이 안 먹는 문제 방지
+    const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
+    const cache = ['.html', '.js', '.css'].includes(ext) ? 'no-cache' : 'public, max-age=86400';
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { ETag: etag, 'Cache-Control': cache, ...SECURITY_HEADERS });
+      return res.end();
+    }
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Content-Length': st.size,
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400',
+      'Cache-Control': cache,
+      ETag: etag,
       ...SECURITY_HEADERS,
     });
     if (req.method === 'HEAD') return res.end();
